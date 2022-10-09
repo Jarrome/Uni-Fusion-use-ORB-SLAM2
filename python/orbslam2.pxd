@@ -52,6 +52,7 @@ cdef extern from "include/System.h" namespace "ORB_SLAM2":
     void Reset()
     void Reset(Mat)
     void Shutdown()
+    Mat GetTrajectoryTUM()
     void SaveTrajectoryTUM(char*)
     void SaveKeyFrameTrajectoryTUM(char*)
     void SaveTrajectoryKITTI(char*)

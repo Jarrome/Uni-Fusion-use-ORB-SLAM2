@@ -7,7 +7,7 @@ from os.path import join, sep
 from glob import glob
 
 
-incl_dirs = ['.', np.get_include(), '/usr/local/include/opencv2', '/usr/local/include/eigen3', '/usr/include/GL']
+incl_dirs = ['.', np.get_include(), '/usr/local/include/opencv2', '/usr/include/eigen3', '/usr/include/GL']
 
 opencv_lib_dir = '/usr/local/lib'
 lib_dirs = ['lib', opencv_lib_dir, '/usr/lib/x86_64-linux-gnu']

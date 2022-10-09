@@ -90,6 +90,9 @@ cdef class SLAM:
     def shutdown(self):
         self.sys.Shutdown()
 
+    def get_trajectory_tum(self):
+        return Mat2np(self.sys.GetTrajectoryTUM())
+
     def save_trajectory_tum(self, out_file):
         out_file = out_file.encode('utf-8')
         self.sys.SaveTrajectoryTUM(out_file)
