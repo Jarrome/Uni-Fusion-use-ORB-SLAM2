@@ -333,12 +333,12 @@ void System::Shutdown()
     }
 }
 
-cv::Mat System::GetTrajectoryTUM()
+vector<cv::Mat> System::GetTrajectoryTUM()
 {
     if(mSensor==MONOCULAR)
     {
         cerr << "ERROR: SaveTrajectoryTUM cannot be used for monocular." << endl;
-        return cv::Mat::zeros(1,8,CV_32F);
+        return vector<cv::Mat>();// cv::Mat::zeros(1,8,CV_32F);
     }
 
     vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
@@ -359,7 +359,7 @@ cv::Mat System::GetTrajectoryTUM()
     list<bool>::iterator lbL = mpTracker->mlbLost.begin();
 
 
-    cv::Mat poseStream = cv::Mat::zeros(mpTracker->mlRelativeFramePoses.size(),8,CV_32F);
+    vector<cv::Mat> poseStream; //cv::Mat::zeros(mpTracker->mlRelativeFramePoses.size(),8,CV_32F);
     cout << "pose stream size" << mpTracker->mlRelativeFramePoses.size()<< endl << flush;
 
     int iter_nm = 0;
@@ -389,15 +389,35 @@ cv::Mat System::GetTrajectoryTUM()
 
         vector<float> q = Converter::toQuaternion(Rwc);
 
+	cv::Mat row = (cv::Mat_<float>(1,8,CV_32F) << float(*lT), 
+						twc.at<float>(0), 
+						twc.at<float>(1),
+						twc.at<float>(2),
+						q[0],q[1],q[2],q[3]);
+	poseStream.push_back(row);
+
+	/*
+	poseStream.at<float>(iter_nm,0) = float(*lT);
+	poseStream.at<float>(iter_nm,1) = twc.at<float>(0);
+	poseStream.at<float>(iter_nm,2) = twc.at<float>(1);
+	poseStream.at<float>(iter_nm,3) = twc.at<float>(2);
+	poseStream.at<float>(iter_nm,4) = q[0];
+	poseStream.at<float>(iter_nm,5) = q[1];
+	poseStream.at<float>(iter_nm,6) = q[2];
+	poseStream.at<float>(iter_nm,7) = q[3];
+	*/
+
+	/*
 	auto row_ptr = poseStream.ptr<float>(iter_nm);
 	row_ptr[0] = float(*lT);
 	row_ptr[1] = twc.at<float>(0);
 	row_ptr[2] = twc.at<float>(1);
 	row_ptr[3] = twc.at<float>(2);
-	row_ptr[4] = float(q[0]);
+	row_ptr[4] = (q[0]);
 	row_ptr[5] = float(q[1]);
 	row_ptr[6] = float(q[2]);
 	row_ptr[7] = float(q[3]);
+	*/
 	//f << setprecision(6) << *lT << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
     }
 

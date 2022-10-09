@@ -52,6 +52,7 @@ cdef object Mat2np(Mat m):
 
     return np.asarray(arr)
 
+
 cdef class SLAM:
     cdef System *sys
     cdef eSensor sensor
@@ -92,7 +93,8 @@ cdef class SLAM:
         self.sys.Shutdown()
 
     def get_trajectory_tum(self):
-        return Mat2np(self.sys.GetTrajectoryTUM())
+        poseStream = self.sys.GetTrajectoryTUM()
+        return [Mat2np(pose) for pose in poseStream]
 
     def save_trajectory_tum(self, out_file):
         out_file = out_file.encode('utf-8')

@@ -99,7 +99,7 @@ public:
 
 
     // Yijun need
-    cv::Mat GetTrajectoryTUM();
+    std::vector<cv::Mat> GetTrajectoryTUM();
 
     // Save camera trajectory in the TUM RGB-D dataset format.
     // Only for stereo and RGB-D. This method does not work for monocular.
