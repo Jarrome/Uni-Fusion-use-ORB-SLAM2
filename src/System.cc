@@ -360,6 +360,8 @@ cv::Mat System::GetTrajectoryTUM()
 
 
     cv::Mat poseStream = cv::Mat::zeros(mpTracker->mlRelativeFramePoses.size(),8,CV_32F);
+    cout << "pose stream size" << mpTracker->mlRelativeFramePoses.size()<< endl << flush;
+
     int iter_nm = 0;
     // Yijun: here just for demo purpose, we assume all frame is well tracked.
     for(list<cv::Mat>::iterator lit=mpTracker->mlRelativeFramePoses.begin(),
@@ -387,12 +389,19 @@ cv::Mat System::GetTrajectoryTUM()
 
         vector<float> q = Converter::toQuaternion(Rwc);
 
-	poseStream.row(iter_nm).col(0) += *lT;
-	poseStream.row(iter_nm).colRange(1,4) += twc;
-	poseStream.row(iter_nm).colRange(4,8) += cv::Mat(q);
-
+	auto row_ptr = poseStream.ptr<float>(iter_nm);
+	row_ptr[0] = float(*lT);
+	row_ptr[1] = twc.at<float>(0);
+	row_ptr[2] = twc.at<float>(1);
+	row_ptr[3] = twc.at<float>(2);
+	row_ptr[4] = float(q[0]);
+	row_ptr[5] = float(q[1]);
+	row_ptr[6] = float(q[2]);
+	row_ptr[7] = float(q[3]);
 	//f << setprecision(6) << *lT << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
     }
+
+    //cout << poseStream << flush;
     return poseStream;
 }
 

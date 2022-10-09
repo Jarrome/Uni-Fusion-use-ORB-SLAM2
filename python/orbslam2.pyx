@@ -2,6 +2,7 @@ import numpy as np
 cimport numpy as np  # for np.ndarray
 from libc.string cimport memcpy
 from orbslam2 cimport *
+import pdb
 
 
 cdef Mat np2Mat(np.ndarray np_array):
