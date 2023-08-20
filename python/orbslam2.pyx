@@ -66,13 +66,13 @@ cdef class SLAM:
     def track(self, *inputs, timestamp=0.0):
         if self.sensor == MONOCULAR:
             frame = inputs[0]
-            self.sys.TrackMonocular(rgb2Mat(frame), timestamp)
+            return Mat2np(self.sys.TrackMonocular(rgb2Mat(frame), timestamp))
         elif self.sensor == STEREO:
             frame_l, frame_r = inputs
-            self.sys.TrackStereo(rgb2Mat(frame_l), rgb2Mat(frame_r), timestamp)
+            return Mat2np(self.sys.TrackStereo(rgb2Mat(frame_l), rgb2Mat(frame_r), timestamp))
         elif self.sensor == RGBD:
             frame, depth_frame = inputs
-            self.sys.TrackRGBD(rgb2Mat(frame), np2Mat(depth_frame), timestamp)
+            return Mat2np(self.sys.TrackRGBD(rgb2Mat(frame), np2Mat(depth_frame), timestamp))
 
     def activateLocalizationMode(self):
         self.sys.ActivateLocalizationMode()

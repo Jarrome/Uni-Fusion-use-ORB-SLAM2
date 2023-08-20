@@ -1,1 +1,1 @@
-python3 python/setup.py build_ext --build-lib lib
+/usr/bin/python3 python/setup.py build_ext --build-lib lib

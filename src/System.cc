@@ -101,8 +101,8 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
 
     //Initialize the Loop Closing thread and launch
-    mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR);
-    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+    //mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR);
+    //mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
     //Initialize the Viewer thread and launch
     if(bUseViewer)
@@ -114,13 +114,13 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     //Set pointers between threads
     mpTracker->SetLocalMapper(mpLocalMapper);
-    mpTracker->SetLoopClosing(mpLoopCloser);
+    //mpTracker->SetLoopClosing(mpLoopCloser);
 
     mpLocalMapper->SetTracker(mpTracker);
-    mpLocalMapper->SetLoopCloser(mpLoopCloser);
+    //mpLocalMapper->SetLoopCloser(mpLoopCloser);
 
-    mpLoopCloser->SetTracker(mpTracker);
-    mpLoopCloser->SetLocalMapper(mpLocalMapper);
+    //mpLoopCloser->SetTracker(mpTracker);
+    //mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
@@ -318,7 +318,7 @@ void System::Reset(const cv::Mat &newPose)
 void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
-    mpLoopCloser->RequestFinish();
+    //mpLoopCloser->RequestFinish();
     if(mpViewer)
     {
         mpViewer->RequestFinish();
@@ -327,7 +327,7 @@ void System::Shutdown()
     }
 
     // Wait until all thread have effectively stopped
-    while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
+    while(!mpLocalMapper->isFinished()) // || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
     {
         usleep(5000);
     }
@@ -351,7 +351,10 @@ vector<cv::Mat> System::GetTrajectoryTUM()
     // Frame pose is stored relative to its reference keyframe (which is optimized by BA and pose graph).
     // We need to get first the keyframe pose and then concatenate the relative transformation.
     // Frames not localized (tracking failure) are not saved.
+    //
+    vector<cv::Mat> poseStream; //cv::Mat::zeros(mpTracker->mlRelativeFramePoses.size(),8,CV_32F);
 
+  /*
     // For each frame we have a reference keyframe (lRit), the timestamp (lT) and a flag
     // which is true when tracking failed (lbL).
     list<ORB_SLAM2::KeyFrame*>::iterator lRit = mpTracker->mlpReferences.begin();
@@ -359,7 +362,6 @@ vector<cv::Mat> System::GetTrajectoryTUM()
     list<bool>::iterator lbL = mpTracker->mlbLost.begin();
 
 
-    vector<cv::Mat> poseStream; //cv::Mat::zeros(mpTracker->mlRelativeFramePoses.size(),8,CV_32F);
     cout << "pose stream size" << mpTracker->mlRelativeFramePoses.size()<< endl << flush;
 
     int iter_nm = 0;
@@ -371,6 +373,13 @@ vector<cv::Mat> System::GetTrajectoryTUM()
             continue;
 
         KeyFrame* pKF = *lRit;
+*/
+ for (list<Tracking::TrackedFrame>::iterator iter = mpTracker->tracked_frames.begin(), iter_end = mpTracker->tracked_frames.end(); iter != iter_end; iter++)
+ {
+	  if(iter->lost)
+            continue;
+
+        KeyFrame* pKF = iter->reference_keyframe;
 
         cv::Mat Trw = cv::Mat::eye(4,4,CV_32F);
 
@@ -383,13 +392,15 @@ vector<cv::Mat> System::GetTrajectoryTUM()
 
         Trw = Trw*pKF->GetPose()*Two;
 
-        cv::Mat Tcw = (*lit)*Trw;
+        //cv::Mat Tcw = (*lit)*Trw;
+        cv::Mat Tcw = iter->relative_frame_pose*Trw;
+
         cv::Mat Rwc = Tcw.rowRange(0,3).colRange(0,3).t();
         cv::Mat twc = -Rwc*Tcw.rowRange(0,3).col(3);
 
         vector<float> q = Converter::toQuaternion(Rwc);
 
-	cv::Mat row = (cv::Mat_<float>(1,8,CV_32F) << float(*lT), 
+	cv::Mat row = (cv::Mat_<float>(1,8,CV_32F) << iter->time, //float(*lT), 
 						twc.at<float>(0), 
 						twc.at<float>(1),
 						twc.at<float>(2),
@@ -425,7 +436,7 @@ vector<cv::Mat> System::GetTrajectoryTUM()
     return poseStream;
 }
 
-
+/*
 void System::SaveTrajectoryTUM(const string &filename)
 {
     cout << endl << "Saving camera trajectory to " << filename << " ..." << endl;
@@ -485,7 +496,62 @@ void System::SaveTrajectoryTUM(const string &filename)
     f.close();
     cout << endl << "trajectory saved!" << endl;
 }
+*/
 
+
+void System::SaveTrajectoryTUM(const string &filename)
+{
+    cout << endl << "Saving camera trajectory to " << filename << " ..." << endl;
+    if(mSensor==MONOCULAR)
+    {
+        cerr << "ERROR: SaveTrajectoryTUM cannot be used for monocular." << endl;
+        return;
+    }
+
+    vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+    sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
+
+    // Transform all keyframes so that the first keyframe is at the origin.
+    // After a loop closure the first keyframe might not be at the origin.
+    cv::Mat Two = vpKFs[0]->GetPoseInverse();
+
+    ofstream f;
+    f.open(filename.c_str());
+    f << fixed;
+
+    // Frame pose is stored relative to its reference keyframe (which is optimized by BA and pose graph).
+    // We need to get first the keyframe pose and then concatenate the relative transformation.
+    // Frames not localized (tracking failure) are not saved.
+
+    for (list<Tracking::TrackedFrame>::iterator iter = mpTracker->tracked_frames.begin(), iter_end = mpTracker->tracked_frames.end(); iter != iter_end; iter++)
+    {
+        if(iter->lost)
+            continue;
+
+        KeyFrame* pKF = iter->reference_keyframe;
+
+        cv::Mat Trw = cv::Mat::eye(4,4,CV_32F);
+
+        // If the reference keyframe was culled, traverse the spanning tree to get a suitable keyframe.
+        while(pKF->isBad())
+        {
+            Trw = Trw*pKF->mTcp;
+            pKF = pKF->GetParent();
+        }
+
+        Trw = Trw*pKF->GetPose()*Two;
+
+        cv::Mat Tcw = iter->relative_frame_pose*Trw;
+        cv::Mat Rwc = Tcw.rowRange(0,3).colRange(0,3).t();
+        cv::Mat twc = -Rwc*Tcw.rowRange(0,3).col(3);
+
+        vector<float> q = Converter::toQuaternion(Rwc);
+
+        f << setprecision(6) << iter->time << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
+    }
+    f.close();
+    cout << endl << "trajectory saved!" << endl;
+}
 
 void System::SaveKeyFrameTrajectoryTUM(const string &filename)
 {
@@ -546,7 +612,7 @@ void System::SaveTrajectoryKITTI(const string &filename)
     // Frame pose is stored relative to its reference keyframe (which is optimized by BA and pose graph).
     // We need to get first the keyframe pose and then concatenate the relative transformation.
     // Frames not localized (tracking failure) are not saved.
-
+	/*
     // For each frame we have a reference keyframe (lRit), the timestamp (lT) and a flag
     // which is true when tracking failed (lbL).
     list<ORB_SLAM2::KeyFrame*>::iterator lRit = mpTracker->mlpReferences.begin();
@@ -554,7 +620,11 @@ void System::SaveTrajectoryKITTI(const string &filename)
     for(list<cv::Mat>::iterator lit=mpTracker->mlRelativeFramePoses.begin(), lend=mpTracker->mlRelativeFramePoses.end();lit!=lend;lit++, lRit++, lT++)
     {
         ORB_SLAM2::KeyFrame* pKF = *lRit;
+	*/
+    for (list<Tracking::TrackedFrame>::iterator iter = mpTracker->tracked_frames.begin(), iter_end = mpTracker->tracked_frames.end(); iter != iter_end; iter++)
+    {
 
+        ORB_SLAM2::KeyFrame* pKF = iter->reference_keyframe;
         cv::Mat Trw = cv::Mat::eye(4,4,CV_32F);
 
         while(pKF->isBad())
@@ -566,7 +636,8 @@ void System::SaveTrajectoryKITTI(const string &filename)
 
         Trw = Trw*pKF->GetPose()*Two;
 
-        cv::Mat Tcw = (*lit)*Trw;
+        //cv::Mat Tcw = (*lit)*Trw;
+	cv::Mat Tcw = iter->relative_frame_pose*Trw;
         cv::Mat Rwc = Tcw.rowRange(0,3).colRange(0,3).t();
         cv::Mat twc = -Rwc*Tcw.rowRange(0,3).col(3);
 
@@ -591,13 +662,13 @@ cv::Mat System::GetWorldPose() {
     cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
 
     if(Tcw.empty()) {
-        ORB_SLAM2::KeyFrame* pKF = mpTracker->mlpReferences.back();
+        ORB_SLAM2::KeyFrame* pKF = mpTracker->tracked_frames.back().reference_keyframe;//mpTracker->mlpReferences.back();
         while(pKF->isBad()) {
             Trw = Trw * pKF->mTcp;
             pKF = pKF->GetParent();
         }
         Trw = Trw * pKF->GetPose();
-        cv::Mat relPose = mpTracker->mlRelativeFramePoses.back();
+        cv::Mat relPose = mpTracker->tracked_frames.back().relative_frame_pose;//mpTracker->mlRelativeFramePoses.back();
         Tcw = relPose * Trw;
     }
 
