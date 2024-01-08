@@ -55,6 +55,7 @@ cdef extern from "include/System.h" namespace "ORB_SLAM2":
     vector[Mat] GetTrajectoryTUM()
     void SaveTrajectoryTUM(char*)
     void SaveKeyFrameTrajectoryTUM(char*)
+    vector[Mat] GetKeyFrameTrajectoryTUM()
     void SaveTrajectoryKITTI(char*)
     int GetTrackingState()
     Mat GetWorldPose()

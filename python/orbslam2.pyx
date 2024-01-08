@@ -108,6 +108,10 @@ cdef class SLAM:
         out_file = out_file.encode('utf-8')
         self.sys.SaveKeyFrameTrajectoryTUM(out_file)
 
+    def get_keyframe_trajectory(self):
+        poseStream = self.sys.GetKeyFrameTrajectoryTUM()
+        return [Mat2np(pose) for pose in poseStream]
+
     def get_tracking_state(self):
         return self.sys.GetTrackingState()
 
